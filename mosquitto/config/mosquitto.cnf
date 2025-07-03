@@ -1,0 +1,26 @@
+# mosquitto.conf
+# Permitir conexiones desde cualquier IP
+listener 1883 0.0.0.0
+allow_anonymous true
+
+# Configuración explícita para permitir conexiones remotas
+bind_address 0.0.0.0
+
+# Persistencia
+persistence true
+persistence_location /mosquitto/data/
+
+# Logging
+log_dest file /mosquitto/log/mosquitto.log
+log_dest stdout
+log_type error
+log_type warning
+log_type notice
+log_type information
+connection_messages true
+log_timestamp true
+
+# Configuración de seguridad básica
+max_connections -1
+max_inflight_messages 100
+max_queued_messages 1000

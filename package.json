@@ -4,9 +4,23 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "install:all": "npm install && cd services/auth-service && npm install && cd ../users-service && npm install",
+    "dev:auth": "cd services/auth-service && npm run dev",
+    "dev:users": "cd services/users-service && npm run dev",
+    "dev:all": "concurrently \"npm run dev:auth\" \"npm run dev:users\" \"npm run dev:devices\"",
+    "build:all": "cd services/auth-service && npm run build && cd ../users-service && npm run build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adrianacoliiin/msc_backend.git"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adrianacoliiin/msc_backend/issues"
+  },
+  "homepage": "https://github.com/adrianacoliiin/msc_backend#readme"
 }

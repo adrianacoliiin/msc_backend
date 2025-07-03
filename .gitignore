@@ -1,0 +1,59 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Builds
+dist/
+**/dist/
+
+# Artefactos de TypeScript
+*.tsbuildinfo
+
+# Archivos de entorno
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Carpeta de uploads temporales
+uploads/
+**/uploads/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+**/logs/
+*.log
+
+# Coverage
+coverage/
+**/coverage/
+
+# IDEs y editores
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+**/docker-compose.override.yml
+**/docker-compose.*.yml
+.env.docker
+
+# Mac/Linux swap & temp
+*~
+*.swp
+
+
+# Datos de Mongo y Mosquitto (volúmenes)
+/data/
+/mosquitto/data/
+/mosquitto/log/
+/**/data/
