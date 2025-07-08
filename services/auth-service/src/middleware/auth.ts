@@ -2,14 +2,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, JWTPayload } from '../utils/jwt';
 
-// Interfaz extendida para el Request
 interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
 }
 
-/**
- * Extrae el Bearer token, lo verifica y guarda el payload en req.user.
- */
 export const authenticateToken = (
   req: Request,
   res: Response,
@@ -32,9 +28,6 @@ export const authenticateToken = (
   }
 };
 
-/**
- * Middleware de autorización por roles.
- */
 export const requireRole = (roles: string[]) => (
   req: Request,
   res: Response,
