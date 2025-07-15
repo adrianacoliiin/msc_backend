@@ -18,8 +18,25 @@ services:
     env_file:
       - ./services/auth-service/.env
     # Variables de entorno para desarrollo
-    environment:
-      - NODE_ENV=development
+    # Reiniciar automáticamente si el contenedor falla
+    restart: unless-stopped
+  devices-service:
+    build:
+      context: ./services/devices-service
+    container_name: devices-service
+    ports:
+      - "3003:3003"
+    depends_on:
+      - mongo1
+      - rabbitmq
+    volumes:
+      # Montar el código fuente para hot reload
+      - ./services/devices-service:/app
+      # Evitar que node_modules se sobrescriba
+      - /app/node_modules
+    env_file:
+      - ./services/devices-service/.env
+    # Variables de entorno para desarrollo
     # Reiniciar automáticamente si el contenedor falla
     restart: unless-stopped
 

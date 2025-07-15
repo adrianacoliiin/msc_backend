@@ -45,7 +45,7 @@ router.get(
 router.post(
   '/',
   authenticateToken,
-  requireRole(['admin']),
+  // requireRole(['admin']),
   validateCreateUser,
   handleValidationErrors,
   ctrl.createUser

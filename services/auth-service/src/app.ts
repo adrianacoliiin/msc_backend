@@ -9,7 +9,7 @@ import authRoutes from './routes/authRoutes';
 
 
 dotenv.config();
-console.log(process.env.MONGODB_URI)
+console.log("Hola", process.env.MONGODB_URI)
 console.log(process.env.JWT_SECRET)
 
 

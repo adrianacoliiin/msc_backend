@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 export const connectDB = async (): Promise<void> => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/iot_clinic_users';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb';
     await mongoose.connect(mongoUri);
     console.log('MongoDB connected successfully');
   } catch (error) {
@@ -28,3 +28,4 @@ process.on('SIGINT', async () => {
   console.log('MongoDB connection closed through app termination');
   process.exit(0);
 });
+

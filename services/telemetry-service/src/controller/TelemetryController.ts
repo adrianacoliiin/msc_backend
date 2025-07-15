@@ -2,10 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { Telemetry } from '../models/Telemetry';
 
 export class TelemetryController {
-  /**
-   * GET /telemetry/device/:id?from=&to=
-   * Devuelve todas las lecturas históricas de un dispositivo entre dos fechas
-   */
   async getByDevice(
     req: Request,
     res: Response,
