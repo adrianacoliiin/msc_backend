@@ -39,6 +39,25 @@ services:
     # Variables de entorno para desarrollo
     # Reiniciar automáticamente si el contenedor falla
     restart: unless-stopped
+  maintenance-service:
+    build:
+      context: ./services/maintenance-service
+    container_name: maintenance-service
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo1
+      - rabbitmq
+    volumes:
+      # Montar el código fuente para hot reload
+      - ./services/maintenance-service:/app
+      # Evitar que node_modules se sobrescriba
+      - /app/node_modules
+    env_file:
+      - ./services/maintenance-service/.env
+    # Variables de entorno para desarrollo
+    # Reiniciar automáticamente si el contenedor falla
+    restart: unless-stopped
 
   mongo1:
     image: mongo:6.0

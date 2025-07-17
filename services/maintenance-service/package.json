@@ -3,8 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "build": "tsc",
+  "start": "node dist/app.js",
+  "dev": "nodemon --exec \"node --loader ts-node/esm\" src/app.ts",
+  "test": "echo \"No tests yet\"",
+  "lint": "eslint src/**/*.ts",
+  "clean": "rm -rf dist"
   },
   "keywords": [],
   "author": "",
@@ -25,7 +31,8 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^24.0.14",
     "@typescript-eslint/eslint-plugin": "^8.35.1",
     "@typescript-eslint/parser": "^8.35.1",
     "concurrently": "^9.2.0",
