@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, JWTPayload } from '../utils/jwt.js';
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   user?: JWTPayload;
 }
 
@@ -45,4 +45,81 @@ export const requireRole = (roles: string[]) => (
     return;
   }
   next();
+};
+
+// Middleware para verificar que el usuario puede modificar el mantenimiento
+export const canModifyMaintenance = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const authenticatedReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+  
+  try {
+    const Maintenance = await import('../models/Maintenance.js');
+    const maintenance = await Maintenance.default.findById(id);
+    
+    if (!maintenance) {
+      res.status(404).json({ error: 'Mantenimiento no encontrado' });
+      return;
+    }
+
+    // Los admins pueden modificar cualquier mantenimiento
+    if (authenticatedReq.user?.role === 'admin') {
+      next();
+      return;
+    }
+
+    // Los técnicos solo pueden modificar sus propios mantenimientos
+    if (authenticatedReq.user?.role === 'tech' && 
+        maintenance.responsible_id.toString() === authenticatedReq.user.userId) {
+      next();
+      return;
+    }
+
+    res.status(403).json({ error: 'No tienes permisos para modificar este mantenimiento' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al verificar permisos' });
+  }
+};
+
+// Middleware para verificar que el usuario puede ver el mantenimiento
+export const canViewMaintenance = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const authenticatedReq = req as AuthenticatedRequest;
+  const { id } = req.params;
+  
+  try {
+    // Los admins pueden ver todo
+    if (authenticatedReq.user?.role === 'admin') {
+      next();
+      return;
+    }
+
+    const Maintenance = await import('../models/Maintenance.js');
+    const maintenance = await Maintenance.default.findById(id);
+    
+    if (!maintenance) {
+      res.status(404).json({ error: 'Mantenimiento no encontrado' });
+      return;
+    }
+
+    // Los técnicos pueden ver sus propios mantenimientos
+    if (authenticatedReq.user?.role === 'tech' && 
+        maintenance.responsible_id.toString() === authenticatedReq.user.userId) {
+      next();
+      return;
+    }
+
+    // Los usuarios normales pueden ver mantenimientos de sus dispositivos
+    // (esto requeriría una relación usuario-dispositivo)
+    
+    res.status(403).json({ error: 'No tienes permisos para ver este mantenimiento' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al verificar permisos' });
+  }
 };

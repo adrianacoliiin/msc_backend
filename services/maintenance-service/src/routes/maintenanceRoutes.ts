@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { MaintenanceController } from '../controllers/MaintenanceController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
-import { handleValidationErrors, validateCreateMaintenance } from '../middleware/validation.js';
+import { 
+  handleValidationErrors, 
+  validateCreateMaintenance,
+  validateUpdateStatus,
+  validateCancelMaintenance 
+} from '../middleware/validation.js';
 
 const router = Router();
 const maintenanceController = new MaintenanceController();
@@ -17,7 +22,12 @@ router.get('/:id',
   maintenanceController.getById
 );
 
-// Rutas de modificación - solo admin y tech
+router.get('/:id/history',
+  authenticateToken,
+  maintenanceController.getStatusHistory
+);
+
+// Rutas de creación - solo admin y tech
 router.post('/',
   authenticateToken,
   requireRole(['admin', 'tech']),
@@ -26,18 +36,46 @@ router.post('/',
   maintenanceController.create
 );
 
-// Futuras rutas opcionales:
-// router.put('/:id',
-//   authenticateToken,
-//   requireRole(['admin', 'tech']),
-//   handleValidationErrors,
-//   maintenanceController.update // (si lo implementas)
-// );
+// Rutas de gestión de estados
 
-// router.delete('/:id',
-//   authenticateToken,
-//   requireRole(['admin']),
-//   maintenanceController.delete // (si lo implementas)
-// );
+// Cambiar estado general (pending -> in_progress -> completed)
+router.patch('/:id/status',
+  authenticateToken,
+  requireRole(['admin', 'tech']),
+  validateUpdateStatus,
+  handleValidationErrors,
+  maintenanceController.updateStatus
+);
+
+// Aprobar mantenimiento - solo admins
+router.patch('/:id/approve',
+  authenticateToken,
+  requireRole(['admin']),
+  maintenanceController.approveMaintenance
+);
+
+// Cancelar mantenimiento - admins o responsable asignado
+router.patch('/:id/cancel',
+  authenticateToken,
+  requireRole(['admin', 'tech']),
+  validateCancelMaintenance,
+  handleValidationErrors,
+  maintenanceController.cancelMaintenance
+);
+
+// Rutas de modificación - solo admin y tech
+router.put('/:id',
+  authenticateToken,
+  requireRole(['admin', 'tech']),
+  handleValidationErrors,
+  maintenanceController.update
+);
+
+// Eliminar - solo admin
+router.delete('/:id',
+  authenticateToken,
+  requireRole(['admin']),
+  maintenanceController.delete
+);
 
 export default router;

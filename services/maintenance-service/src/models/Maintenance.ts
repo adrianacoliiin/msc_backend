@@ -7,6 +7,9 @@ export interface MaintenanceDocument extends Document {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'approved';
   approved_by?: Types.ObjectId;
   damage_image?: string;
+  priority?: 'low' | 'medium' | 'high';
+  description?: string;
+  estimated_duration?: number; // Duración estimada en minutos
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +34,18 @@ const maintenanceSchema = new Schema<MaintenanceDocument>({
   },
   approved_by: {
     type: Schema.Types.ObjectId,
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium',
+  },
+  description: {
+    type: String,
+    maxlength: 500,
+  },
+  estimated_duration: {
+    type: Number, // Duración en minutos
   },
   damage_image: {
     type: String,
