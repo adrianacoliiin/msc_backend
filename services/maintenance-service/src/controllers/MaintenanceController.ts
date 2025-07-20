@@ -456,7 +456,7 @@ private static getAllowedUpdateFields(status: string): string[] {
       }
 
       // Solo permitir eliminar si está en estado 'pending' o 'cancelled'
-      if (!['pending', 'cancelled'].includes(maintenance.status)) {
+      if (!['pending', 'cancelled', 'in_progress','approved'].includes(maintenance.status)) {
         res.status(400).json({ 
           message: `No se puede eliminar un mantenimiento en estado ${maintenance.status}`,
           currentStatus: maintenance.status 
