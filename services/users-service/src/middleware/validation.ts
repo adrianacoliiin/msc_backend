@@ -46,6 +46,18 @@ export const validateUpdateUser = [
     .optional()
     .isIn(['admin', 'tech', 'user'])
     .withMessage('Role must be admin, tech, or user'),
+
+  body('name')
+    .optional()
+    .isString()
+    .isLength({ min: 2 })
+    .withMessage('Name must be at least 2 characters'),
+
+  body('last_name')
+    .optional()
+    .isString()
+    .isLength({ min: 2 })
+    .withMessage('Last name must be at least 2 characters'),
 ];
 
 export const validateUpdateProfile = [

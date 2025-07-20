@@ -14,8 +14,8 @@ export class AuthController {
   // POST /register
   async register(req: Request, res: Response): Promise<void> {
     try {
-      const { email, password, role } = req.body;
-      const result = await authService.register({ email, password, role });
+      const { email, password, role, name, last_name } = req.body;
+      const result = await authService.register({ email, password, role, name, last_name });
       
       // Enviar notificación en tiempo real a los administradores
       if (result.user.status === 'pending') {
@@ -23,7 +23,9 @@ export class AuthController {
           userId: result.user.id,
           email: result.user.email,
           role: result.user.role,
-          createdAt: result.user.createdAt
+          createdAt: result.user.createdAt,
+          name: result.user.name,
+          last_name: result.user.last_name
         });
       }
 
@@ -128,7 +130,9 @@ export class AuthController {
           email: userData.email,
           role: userData.role,
           status: userData.status,
-          createdAt: userData.createdAt
+          createdAt: userData.createdAt,
+          name:userData.name,
+          last_name: userData.last_name
         }
       });
     } catch (error) {

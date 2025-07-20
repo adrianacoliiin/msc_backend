@@ -2,6 +2,9 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IUser extends Document {
+  //le voy a poner el nombre que ya lo ocupo ___0_0______
+  name?:string;
+  last_name?:string;
   email: string;
   hashPassword?: string;
   role: 'admin' | 'tech' | 'user';
@@ -14,6 +17,14 @@ export interface IUser extends Document {
 }
 
 const userSchema = new Schema<IUser>({
+  name:{
+    type:String,
+    default:''
+  },
+  last_name:{
+    type:String,
+    default:'',
+  },
   email: {
     type: String,
     required: true,

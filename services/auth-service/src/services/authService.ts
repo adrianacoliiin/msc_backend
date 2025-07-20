@@ -7,6 +7,8 @@ export interface RegisterData {
   email: string;
   password: string;
   role?: 'admin' | 'tech' | 'user';
+  name?:string;
+  last_name?:string;
 }
 
 export interface LoginData {
@@ -21,6 +23,8 @@ export interface AuthResponse {
     email: string;
     role: string;
     status: string;
+    name?:string;
+    last_name?:string;
   };
 }
 
@@ -45,6 +49,8 @@ export class AuthService {
       email, 
       hashPassword, 
       role,
+      name: data.name ||'',
+      last_name: data.last_name || '',
       status: 'pending' // Por defecto pending para aprobación manual
     });
     await user.save();
