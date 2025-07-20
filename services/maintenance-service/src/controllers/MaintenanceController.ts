@@ -436,7 +436,7 @@ private static getAllowedUpdateFields(status: string): string[] {
   const fieldsByStatus: { [key: string]: string[] } = {
     'pending': ['date', 'responsible_id', 'device_id', 'damage_image', 'priority', 'description'],
     'in_progress': ['damage_image', 'description'],  // 👈 cambio clave aquí
-    'completed': [],
+    'completed': ['description', 'damage_image'],
     'cancelled': [],
     'approved': []
   };
