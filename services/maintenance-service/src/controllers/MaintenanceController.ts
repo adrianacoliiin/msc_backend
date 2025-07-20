@@ -431,17 +431,19 @@ export class MaintenanceController {
     }
   }
 
-  private static getAllowedUpdateFields(status: string): string[] {
-    const fieldsByStatus: { [key: string]: string[] } = {
-      'pending': ['date', 'responsible_id', 'device_id', 'damage_image', 'priority', 'description'],
-      'in_progress': ['damage_image'],
-      'completed': [],
-      'cancelled': [],
-      'approved': []
-    };
+  //Voy a cambiar esto para poder meter la descripcio e imagenes sin importar el status 0_0
+private static getAllowedUpdateFields(status: string): string[] {
+  const fieldsByStatus: { [key: string]: string[] } = {
+    'pending': ['date', 'responsible_id', 'device_id', 'damage_image', 'priority', 'description'],
+    'in_progress': ['damage_image', 'description'],  // 👈 cambio clave aquí
+    'completed': [],
+    'cancelled': [],
+    'approved': []
+  };
 
-    return fieldsByStatus[status] || [];
-  }
+  return fieldsByStatus[status] || [];
+}
+//_____________________________________________
 
   async delete(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
