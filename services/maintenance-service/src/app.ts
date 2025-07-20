@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { connectDB } from './config/database.js';
 import maintenanceRoutes from './routes/maintenanceRoutes.js';
+import { console } from 'inspector';
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   console.error('Error:', err.stack);
   res.status(500).json({ 
     success: false,
-    error: 'Something went wrong!' 
+    error: 'Something went wrong!'
   });
 });
 

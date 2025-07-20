@@ -4,6 +4,7 @@ import Maintenance from '../models/Maintenance.js';
 import { CreateMaintenanceDTO } from '../dtos/createMaintenance.dto.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 import { Types } from 'mongoose';
+import { cloudinary } from '../config/cloudinary.js';
 
 export class MaintenanceController {
   async create(req: Request, res: Response): Promise<void> {
@@ -13,21 +14,41 @@ export class MaintenanceController {
       return;
     }
 
-    const { date, responsible_id, device_id, damage_image, priority, description}: CreateMaintenanceDTO = req.body;
+    const {
+      date,
+      responsible_id,
+      device_id,
+      priority,
+      description,
+    }: CreateMaintenanceDTO = req.body;
 
     try {
+      const file = req.file as any;
+
       const maintenance = new Maintenance({
         date,
-        responsible_id,
-        device_id,
-        damage_image,
+        responsible_id: new Types.ObjectId(responsible_id),
+        device_id: new Types.ObjectId(device_id),
         priority: priority || 'medium',
         description,
+        damage_image: file?.path || null, // URL pública
+        cloudinary_id: file?.public_id || null, // Puedes guardarlo si tu modelo lo permite
       });
 
       const saved = await maintenance.save();
       res.status(201).json(saved);
     } catch (err) {
+      const file = req.file as any;
+
+      // Si hubo error y se subió imagen, eliminarla de Cloudinary
+      if (file?.public_id) {
+        try {
+          await cloudinary.uploader.destroy(file.public_id);
+        } catch (deleteError) {
+          console.error('Error al eliminar imagen de Cloudinary:', deleteError);
+        }
+      }
+
       res.status(500).json({ message: 'Error al crear el mantenimiento', error: err });
     }
   }
@@ -272,7 +293,7 @@ export class MaintenanceController {
     }
   }
 
-  // Métodos existentes actualizados
+  //Actualizar mantenimiento 
   async update(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
     const updates = req.body;
@@ -299,21 +320,114 @@ export class MaintenanceController {
           return obj;
         }, {} as any);
 
+      // Si se sube nueva imagen, reemplazar la anterior
+      if (req.file) {
+        const file = req.file as any;
+        filteredUpdates.damage_image = file.path;
+
+        // Eliminar imagen anterior de Cloudinary si existe
+        if (maintenance.damage_image) {
+          try {
+            const imageUrl = maintenance.damage_image;
+            const base = 'upload/';
+            const startIndex = imageUrl.indexOf(base);
+            if (startIndex !== -1) {
+              let publicIdWithExtension = decodeURIComponent(imageUrl.slice(startIndex + base.length));
+              publicIdWithExtension = publicIdWithExtension.replace(/^v\d+\//, '');
+              const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
+              await cloudinary.uploader.destroy(publicId);
+              console.log('Imagen anterior eliminada:', publicId);
+            }
+          } catch (deleteError) {
+            console.error('Error al eliminar imagen anterior:', deleteError);
+          }
+        }
+      }
+
+      // Guardar cambios
       const updatedMaintenance = await Maintenance.findByIdAndUpdate(
         id,
         filteredUpdates,
-        { new: true, runValidators: true })
-        //.populate('responsible_id', 'name email')
-      //  .populate('device_id', 'name model serialNumber')
-      //  .populate('approved_by', 'name email');
+        { new: true, runValidators: true }
+      );
 
       res.status(200).json({
         message: 'Mantenimiento actualizado exitosamente',
-        maintenance: updatedMaintenance
+        maintenance: updatedMaintenance,
       });
     } catch (err) {
+      // Si hubo error y se subió nueva imagen, eliminarla
+      if (req.file) {
+        try {
+          const file = req.file as any;
+          if (file.public_id) {
+            await cloudinary.uploader.destroy(file.public_id);
+            console.log('Imagen subida eliminada por error:', file.public_id);
+          }
+        } catch (deleteError) {
+          console.error('Error al eliminar imagen subida tras fallo:', deleteError);
+        }
+      }
       console.error('Error al actualizar el mantenimiento:', err);
       res.status(500).json({ message: 'Error al actualizar el mantenimiento', error: err });
+    }
+  }
+  // Método para eliminar imagen específica
+  async deleteImage(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+
+    try {
+      const maintenance = await Maintenance.findById(id);
+      if (!maintenance) {
+        res.status(404).json({ message: 'Mantenimiento no encontrado' });
+        return;
+      }
+
+      if (!maintenance.damage_image) {
+        res.status(404).json({ message: 'No hay imagen para eliminar' });
+        return;
+      }
+
+      const imageUrl = maintenance.damage_image;
+
+      //localizar la parte después de 'upload/'
+      const base = 'upload/';
+      const startIndex = imageUrl.indexOf(base);
+      if (startIndex === -1) {
+        res.status(400).json({ message: 'URL de imagen inválida o no compatible' });
+        return;
+      }
+
+      //obtener el path completo después de 'upload/', con decodificación
+      let publicIdWithExtension = decodeURIComponent(imageUrl.slice(startIndex + base.length));
+
+      // Eliminar prefijo de versión si exist
+      publicIdWithExtension = publicIdWithExtension.replace(/^v\d+\//, '');
+
+      //eliminar extensión (.jpg, .png, .webp, etc.)
+      const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
+
+      console.log('public_id para eliminar:', publicId);
+
+      //eliminar en Cloudinary
+      const result = await cloudinary.uploader.destroy(publicId);
+
+      if (result.result !== 'ok') {
+        res.status(500).json({ message: 'No se pudo eliminar la imagen de Cloudinary', cloudinaryResult: result });
+        return;
+      }
+
+      //eliminar referencia en la base de datos
+      maintenance.damage_image = undefined;
+      await maintenance.save();
+
+      res.status(200).json({
+        message: 'Imagen eliminada exitosamente',
+        maintenance,
+      });
+    } catch (err) {
+      console.error('Error al eliminar imagen:', err);
+      res.status(500).json({ message: 'Error al eliminar la imagen', error: err });
     }
   }
 
@@ -346,6 +460,18 @@ export class MaintenanceController {
           currentStatus: maintenance.status 
         });
         return;
+      }
+
+      // Eliminar imagen de Cloudinary si existe
+      if (maintenance.damage_image) {
+        try {
+          const urlParts = maintenance.damage_image.split('/');
+          const publicIdWithExtension = urlParts[urlParts.length - 1];
+          const publicId = publicIdWithExtension.split('.')[0];
+          await cloudinary.uploader.destroy(`maintenance_images/${publicId}`);
+        } catch (deleteError) {
+          console.error('Error al eliminar imagen de Cloudinary:', deleteError);
+        }
       }
 
       await Maintenance.findByIdAndDelete(id);

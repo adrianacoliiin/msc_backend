@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { MaintenanceController } from '../controllers/MaintenanceController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { upload } from '../config/cloudinary.js';
 import { 
   handleValidationErrors, 
   validateCreateMaintenance,
@@ -22,15 +23,16 @@ router.get('/:id',
   maintenanceController.getById
 );
 
-router.get('/:id/history',
-  authenticateToken,
-  maintenanceController.getStatusHistory
-);
+// router.get('/:id/history',
+//   authenticateToken,
+//   maintenanceController.getStatusHistory
+// );
 
-// Rutas de creación - solo admin y tech
+// Rutas de creación - solo admin y tech, con soporte para imagen
 router.post('/',
   authenticateToken,
   requireRole(['admin', 'tech']),
+  upload.single('damage_image'), // Multer para manejar la imagen
   validateCreateMaintenance,
   handleValidationErrors,
   maintenanceController.create
@@ -63,15 +65,23 @@ router.patch('/:id/cancel',
   maintenanceController.cancelMaintenance
 );
 
-// Rutas de modificación - solo admin y tech
+// Rutas de modificación - solo admin y tech, con soporte para imagen
 router.put('/:id',
   authenticateToken,
   requireRole(['admin', 'tech']),
+  upload.single('damage_image'), //multer para manejar nueva imagen
   handleValidationErrors,
   maintenanceController.update
 );
 
-// Eliminar - solo admin
+// Ruta específica para eliminar imagen
+router.delete('/:id/image',
+  authenticateToken,
+  requireRole(['admin', 'tech']),
+  maintenanceController.deleteImage
+);
+
+// Eliminar mantenimiento - solo admin
 router.delete('/:id',
   authenticateToken,
   requireRole(['admin']),
