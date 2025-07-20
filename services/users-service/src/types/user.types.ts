@@ -21,6 +21,7 @@ export interface CreateUserRequest {
     id: string;
     email: string;
     role: string;
+    status: 'pending' | 'active' | 'rejected';
     createdAt: Date;
     updatedAt: Date;
   }

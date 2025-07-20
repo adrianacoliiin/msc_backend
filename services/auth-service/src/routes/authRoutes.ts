@@ -20,11 +20,29 @@ router.post('/login',
   authController.login
 );
 
-// Rutas protegidas
+// Rutas protegida - usuario autenticado
 router.get('/me', 
   authenticateToken,
-  // requireRole(['admin']),
   authController.me
+);
+
+// Rutas de administración - admins
+router.get('/users', 
+  authenticateToken,
+  requireRole(['admin']),
+  authController.getUsers
+);
+
+router.get('/users/pending', 
+  authenticateToken,
+  requireRole(['admin']),
+  authController.getPendingUsers
+);
+
+router.patch('/users/:id/status', 
+  authenticateToken,
+  requireRole(['admin']),
+  authController.updateUserStatus
 );
 
 export default router;

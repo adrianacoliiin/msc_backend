@@ -1,10 +1,11 @@
-//user service
+// src/models/User.ts - auth
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IUser extends Document {
   email: string;
-  hashPassword: string;
+  hashPassword?: string;
   role: 'admin' | 'tech' | 'user';
+  status: 'pending' | 'active' | 'rejected';
   oauthProviders?: {
     googleId?: string;
   };
@@ -12,36 +13,42 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
-const userSchema = new Schema<IUser>(
-  {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    hashPassword: {
-      type: String,
-      required: true,
-    },
-    role: {
-      type: String,
-      enum: ['admin', 'tech', 'user'],
-      default: 'user',
-    },
-    oauthProviders: {
-      googleId: {
-        type: String,
-        required: false,
-      },
-    },
+const userSchema = new Schema<IUser>({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
   },
-  { timestamps: true }
-);
+  hashPassword: {
+    type: String,
+    required: function() {
+      return !this.oauthProviders?.googleId;
+    }
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'tech', 'user'],
+    default: 'user'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'rejected'],
+    default: 'pending'
+  },
+  oauthProviders: {
+    googleId: {
+      type: String,
+      sparse: true
+    }
+  }
+}, {
+  timestamps: true
+});
 
-// Índices
 userSchema.index({ email: 1 });
-userSchema.index({ role: 1 });
+userSchema.index({ 'oauthProviders.googleId': 1 });
+userSchema.index({ status: 1 });
 
 export const User = mongoose.model<IUser>('User', userSchema);

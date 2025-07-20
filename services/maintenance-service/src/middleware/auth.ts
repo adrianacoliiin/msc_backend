@@ -116,7 +116,6 @@ export const canViewMaintenance = async (
     }
 
     // Los usuarios normales pueden ver mantenimientos de sus dispositivos
-    // (esto requeriría una relación usuario-dispositivo)
     
     res.status(403).json({ error: 'No tienes permisos para ver este mantenimiento' });
   } catch (error) {

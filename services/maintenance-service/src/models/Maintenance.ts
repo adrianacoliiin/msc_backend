@@ -9,7 +9,6 @@ export interface MaintenanceDocument extends Document {
   damage_image?: string;
   priority?: 'low' | 'medium' | 'high';
   description?: string;
-  estimated_duration?: number; // Duración estimada en minutos
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,9 +42,6 @@ const maintenanceSchema = new Schema<MaintenanceDocument>({
   description: {
     type: String,
     maxlength: 500,
-  },
-  estimated_duration: {
-    type: Number, // Duración en minutos
   },
   damage_image: {
     type: String,

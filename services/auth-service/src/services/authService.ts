@@ -20,11 +20,18 @@ export interface AuthResponse {
     id: string;
     email: string;
     role: string;
+    status: string;
   };
 }
 
+export interface UpdateStatusData {
+  userId: string;
+  status: 'active' | 'rejected';
+  updatedBy: string; // ID del administrador que hace el cambio
+}
+
 export class AuthService {
-  async register(data: RegisterData): Promise<AuthResponse> {
+  async register(data: RegisterData): Promise<{ user: IUser; token?: string }> {
     const { email, password, role = 'user' } = data;
 
     const existingUser = await User.findOne({ email });
@@ -34,18 +41,25 @@ export class AuthService {
 
     const hashPassword = await bcrypt.hash(password, 12);
 
-    const user = new User({ email, hashPassword, role });
+    const user = new User({ 
+      email, 
+      hashPassword, 
+      role,
+      status: 'pending' // Por defecto pending para aprobación manual
+    });
     await user.save();
 
-    const token = generateToken(user);
+    // Solo generar token si es admin (los admins pueden acceder inmediatamente)
+    let token;
+    if (role === 'admin') {
+      user.status = 'active';
+      await user.save();
+      token = generateToken(user);
+    }
 
     return {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
+      user,
+      token
     };
   }
 
@@ -62,6 +76,15 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
+    // Validar que el usuario esté aprobado
+    if (user.status !== 'active') {
+      if (user.status === 'pending') {
+        throw new Error('Tu cuenta aún no ha sido aprobada por un administrador.');
+      } else if (user.status === 'rejected') {
+        throw new Error('Tu cuenta ha sido rechazada. Contacta al administrador.');
+      }
+    }
+
     const token = generateToken(user);
 
     return {
@@ -70,6 +93,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        status: user.status,
       },
     };
   }
@@ -90,6 +114,7 @@ export class AuthService {
       user = new User({
         email: profile.emails[0].value,
         role: 'user',
+        status: 'pending', // Google users también necesitan aprobación
         oauthProviders: { googleId: profile.id },
       });
       await user.save();
@@ -99,5 +124,59 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  // Nuevos métodos para gestión de usuarios
+
+  async getPendingUsers(): Promise<IUser[]> {
+    return User.find({ status: 'pending' }).sort({ createdAt: -1 });
+  }
+
+  async getUsersByStatus(status: 'pending' | 'active' | 'rejected'): Promise<IUser[]> {
+    return User.find({ status }).sort({ createdAt: -1 });
+  }
+
+  async updateUserStatus(data: UpdateStatusData): Promise<IUser> {
+    const { userId, status } = data;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.status === status) {
+      throw new Error(`User status is already ${status}`);
+    }
+
+    user.status = status;
+    await user.save();
+
+    return user;
+  }
+
+  async getAllUsers(page: number = 1, limit: number = 10, status?: string): Promise<{
+    users: IUser[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    const query = status ? { status } : {};
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .select('-hashPassword')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(query)
+    ]);
+
+    return {
+      users,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 }

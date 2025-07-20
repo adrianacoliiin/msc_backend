@@ -1,44 +1,65 @@
-// src/app.ts
+// src/server.ts
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { connectDB } from './config/database';
+import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes';
+// import { NotificationService } from './services/notificationService';
 
+// Evitar doble instancia
+import { notificationService } from './services/notificationServiceInstance';
+// notificationService.initialize(server);
+//
 
 dotenv.config();
-console.log("Hola", process.env.MONGODB_URI)
-console.log(process.env.JWT_SECRET)
-
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const server = createServer(app); // necesario para websockets
 
-// Conectar a MongoDB
-connectDB();
+// Notificaciones en tiempo real - solo iniciar una vez
+// const notificationService = new NotificationService();
+notificationService.initialize(server);
+//aaaaaaaaaaaaaaaa
 
-// Middleware de seguridad y parsing
+
+// Middlewares
 app.use(helmet());
 app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas de autenticación
+// Conectar a MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb')
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// Rutas
 app.use('/auth', authRoutes);
 
-// Health check
+// Ruta de salud
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     service: 'auth-service',
     timestamp: new Date().toISOString(),
+    notifications: notificationService.getConnectionStats()
   });
 });
 
-// Manejador de errores genérico
+// estadísticas del socket
+app.get('/notifications/stats', (req, res) => {
+  const stats = notificationService.getConnectionStats();
+  res.json({
+    success: true,
+    data: stats
+  });
+});
+
+// Manejador de errores
 app.use(
   (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('Error:', err.stack);
@@ -49,7 +70,7 @@ app.use(
   }
 );
 
-// 404 handler sin patrón inválido
+// Ruta 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -57,9 +78,11 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
   console.log(`Auth service running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Socket.IO notifications enabled`);
 });
 
 export default app;

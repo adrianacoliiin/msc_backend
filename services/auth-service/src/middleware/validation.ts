@@ -1,17 +1,16 @@
 // src/middleware/validation.ts
-import { body, validationResult } from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 
+// Validaciones existentes
 export const validateRegister = [
   body('email')
     .isEmail()
-    .withMessage('Please provide a valid email')
-    .normalizeEmail(),
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .withMessage('Password must be at least 6 characters long'),
   body('role')
     .optional()
     .isIn(['admin', 'tech', 'user'])
@@ -21,21 +20,58 @@ export const validateRegister = [
 export const validateLogin = [
   body('email')
     .isEmail()
-    .withMessage('Please provide a valid email')
-    .normalizeEmail(),
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
   body('password')
     .notEmpty()
     .withMessage('Password is required')
 ];
 
-export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
+// Nueva validación para actualizar estado de usuario
+export const validateUpdateUserStatus = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID'),
+  body('status')
+    .isIn(['active', 'rejected'])
+    .withMessage('Status must be either "active" or "rejected"')
+];
+
+// Validación para obtener usuarios con filtros
+export const validateGetUsers = [
+  query('status')
+    .optional()
+    .isIn(['pending', 'active', 'rejected'])
+    .withMessage('Status must be pending, active, or rejected'),
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+];
+
+// Middleware para manejar errores de validación
+export const handleValidationErrors = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const errors = validationResult(req);
+  
   if (!errors.isEmpty()) {
     res.status(400).json({
+      success: false,
       error: 'Validation failed',
-      details: errors.array()
+      details: errors.array().map(error => ({
+        field: error.type === 'field' ? (error as any).path : error.type,
+        message: error.msg
+      }))
     });
     return;
   }
+  
   next();
 };

@@ -67,6 +67,7 @@ export class UserService {
       id: user._id?.toString() || user.id,
       email: user.email,
       role: user.role,
+      status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

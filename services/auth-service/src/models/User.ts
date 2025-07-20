@@ -5,6 +5,7 @@ export interface IUser extends Document {
   email: string;
   hashPassword?: string;
   role: 'admin' | 'tech' | 'user';
+  status: 'pending' | 'active' | 'rejected';
   oauthProviders?: {
     googleId?: string;
   };
@@ -31,6 +32,11 @@ const userSchema = new Schema<IUser>({
     enum: ['admin', 'tech', 'user'],
     default: 'user'
   },
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'rejected'],
+    default: 'pending'
+  },
   oauthProviders: {
     googleId: {
       type: String,
@@ -43,5 +49,6 @@ const userSchema = new Schema<IUser>({
 
 userSchema.index({ email: 1 });
 userSchema.index({ 'oauthProviders.googleId': 1 });
+userSchema.index({ status: 1 });
 
 export const User = mongoose.model<IUser>('User', userSchema);
