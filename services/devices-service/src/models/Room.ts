@@ -6,9 +6,9 @@ interface RoomDocument extends IRoom, Document {}
 const roomSchema = new Schema<RoomDocument>({
   number: {
     type: String,
-    required: true,
-    unique: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: null,
   },
   name: {
     type: String,

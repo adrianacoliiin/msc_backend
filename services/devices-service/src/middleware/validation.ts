@@ -86,14 +86,14 @@ export const validateActivateDevice = [
 ];
 
 export const validateRoom = [
-  body('number')
-    .notEmpty()
-    .withMessage('Room number is required')
-    .isString()
-    .withMessage('Room number must be a string')
-    .trim()
-    .isLength({ min: 1, max: 10 })
-    .withMessage('Room number must be between 1 and 10 characters'),
+body('number')
+  .optional({ nullable: true })
+  .isString()
+  .withMessage('Room number must be a string')
+  .trim()
+  .isLength({ min: 1, max: 10 })
+  .withMessage('Room number must be between 1 and 10 characters'),
+
   
   body('name')
     .notEmpty()
