@@ -7,9 +7,9 @@ services:
     container_name: auth-service
     ports:
       - "3001:3001"
-    depends_on:
-      - mongo1
-      - rabbitmq
+    # depends_on:
+    #   - mongo1
+    #   - rabbitmq
     volumes:
       # Montar el código fuente para hot reload
       - ./services/auth-service:/app
@@ -26,9 +26,9 @@ services:
     container_name: devices-service
     ports:
       - "3003:3003"
-    depends_on:
-      - mongo1
-      - rabbitmq
+    # depends_on:
+    #   - mongo1
+    #   - rabbitmq
     volumes:
       # Montar el código fuente para hot reload
       - ./services/devices-service:/app
@@ -45,9 +45,9 @@ services:
     container_name: maintenance-service
     ports:
       - "3000:3000"
-    depends_on:
-      - mongo1
-      - rabbitmq
+    # depends_on:
+    #   - mongo1
+    #   - rabbitmq
     volumes:
       # Montar el código fuente para hot reload
       - ./services/maintenance-service:/app
@@ -65,9 +65,9 @@ services:
     container_name: users-service
     ports:
       - "3002:3002"
-    depends_on:
-      - mongo1
-      - rabbitmq
+    # depends_on:
+    #   - mongo1
+    #   - rabbitmq
     volumes:
       # Montar el código fuente para hot reload
       - ./services/users-service:/app
@@ -75,6 +75,25 @@ services:
       - /app/node_modules
     env_file:
       - ./services/users-service/.env
+    # Variables de entorno para desarrollo
+    # Reiniciar automáticamente si el contenedor falla
+    restart: unless-stopped
+  telemetry-service:
+    build:
+      context: ./services/telemetry-service
+    container_name: telemetry-service
+    ports:
+      - "3004:3004"
+    # depends_on:
+    #   - mongo1
+    #   - rabbitmq
+    volumes:
+      # Montar el código fuente para hot reload
+      - ./services/telemetry-service:/app
+      # Evitar que node_modules se sobrescriba
+      - /app/node_modules
+    env_file:
+      - ./services/telemetry-service/.env
     # Variables de entorno para desarrollo
     # Reiniciar automáticamente si el contenedor falla
     restart: unless-stopped
@@ -106,29 +125,29 @@ services:
     volumes:
       - mongo3:/data/db
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin
-    ports:
-      - "5672:5672"     # AMQP
-      - "15672:15672"   # Management UI
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+  # rabbitmq:
+  #   image: rabbitmq:3-management
+  #   container_name: rabbitmq
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: admin
+  #     RABBITMQ_DEFAULT_PASS: admin
+  #   ports:
+  #     - "5672:5672"     # AMQP
+  #     - "15672:15672"   # Management UI
+  #   volumes:
+  #     - rabbitmq_data:/var/lib/rabbitmq
 
-  mosquitto:
-    image: eclipse-mosquitto:2
-    container_name: mosquitto
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./mosquitto/config:/mosquitto/config
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
-    command: mosquitto -c /mosquitto/config/mosquitto.conf -v
+  # mosquitto:
+  #   image: eclipse-mosquitto:2
+  #   container_name: mosquitto
+  #   ports:
+  #     - "1883:1883"
+  #     - "9001:9001"
+  #   volumes:
+  #     - ./mosquitto/config:/mosquitto/config
+  #     - ./mosquitto/data:/mosquitto/data
+  #     - ./mosquitto/log:/mosquitto/log
+  #   command: mosquitto -c /mosquitto/config/mosquitto.conf -v
 
 volumes:
   mongo1:
