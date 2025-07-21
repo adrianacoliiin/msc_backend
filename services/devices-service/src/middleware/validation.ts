@@ -14,6 +14,77 @@ export const handleValidationErrors = (req: Request, res: Response, next: NextFu
   next();
 };
 
+// Validaciones para Device Registration
+export const validateRegisterDevice = [
+  body('name')
+    .notEmpty()
+    .withMessage('Device name is required')
+    .isString()
+    .withMessage('Device name must be a string')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Device name must be between 1 and 100 characters'),
+    
+  body('description')
+    .optional()
+    .isString()
+    .withMessage('Description must be a string')
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Description must be less than 500 characters'),
+    
+  body('roomId')
+    .notEmpty()
+    .withMessage('Room ID is required')
+    .isMongoId()
+    .withMessage('Room ID must be a valid MongoDB ObjectId'),
+    
+  body('sensorType')
+    .notEmpty()
+    .withMessage('Sensor type is required')
+    .isIn(['mq4', 'dht22', 'pir'])
+    .withMessage('Sensor type must be mq4, dht22, or pir'),
+    
+  body('sensorLabel')
+    .notEmpty()
+    .withMessage('Sensor label is required')
+    .isString()
+    .withMessage('Sensor label must be a string')
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Sensor label must be between 1 and 50 characters'),
+    
+  body('metric')
+    .notEmpty()
+    .withMessage('Metric is required')
+    .isString()
+    .withMessage('Metric must be a string')
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Metric must be between 1 and 50 characters'),
+    
+  body('unit')
+    .notEmpty()
+    .withMessage('Unit is required')
+    .isString()
+    .withMessage('Unit must be a string')
+    .trim()
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Unit must be between 1 and 20 characters')
+];
+
+// Validaciones para Device Activation
+export const validateActivateDevice = [
+  body('token')
+    .notEmpty()
+    .withMessage('Activation token is required')
+    .isString()
+    .withMessage('Token must be a string')
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Token cannot be empty')
+];
+
 export const validateRoom = [
   body('number')
     .notEmpty()
@@ -102,7 +173,7 @@ export const validateUpdateRoom = [
 ];
 
 
-// Validaciones para Device
+// Validaciones para Device CRUD
 export const validateDevice = [
   body('name')
     .notEmpty()
@@ -132,7 +203,7 @@ export const validateDevice = [
     .withMessage('At least one sensor is required'),
     
   body('sensors.*.type')
-    .isIn(['mq4', 'dht11', 'pir', 'mq2', 'ds18b20', 'bmp280'])
+    .isIn(['mq4', 'dht22', 'pir'])
     .withMessage('Invalid sensor type'),
     
   body('sensors.*.label')
@@ -147,16 +218,67 @@ export const validateDevice = [
     
   body('status')
     .optional()
-    .isIn(['active', 'inactive', 'maintenance'])
-    .withMessage('Status must be active, inactive, or maintenance')
+    .isIn(['pending', 'active', 'inactive', 'maintenance'])
+    .withMessage('Status must be pending, active, inactive, or maintenance')
 ];
 
-// Validaciones para Device Reading
+// Validaciones para actualizar Device
+export const validateUpdateDevice = [
+  body('name')
+    .optional()
+    .isString()
+    .withMessage('Device name must be a string')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Device name must be between 1 and 100 characters'),
+    
+  body('description')
+    .optional()
+    .isString()
+    .withMessage('Description must be a string')
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Description must be less than 500 characters'),
+    
+  body('roomId')
+    .optional()
+    .isMongoId()
+    .withMessage('Room ID must be a valid MongoDB ObjectId'),
+    
+  body('sensors')
+    .optional()
+    .isArray({ min: 1 })
+    .withMessage('At least one sensor is required'),
+    
+  body('sensors.*.type')
+    .optional()
+    .isIn(['mq4', 'dht22', 'pir'])
+    .withMessage('Invalid sensor type'),
+    
+  body('sensors.*.label')
+    .optional()
+    .notEmpty()
+    .withMessage('Sensor label is required')
+    .isString()
+    .withMessage('Sensor label must be a string'),
+    
+  body('sensors.*.measurements')
+    .optional()
+    .isArray({ min: 1 })
+    .withMessage('At least one measurement is required per sensor'),
+    
+  body('status')
+    .optional()
+    .isIn(['pending', 'active', 'inactive', 'maintenance'])
+    .withMessage('Status must be pending, active, inactive, or maintenance')
+];
+
+// Validaciones para Device Reading (para Fase 2)
 export const validateDeviceReading = [
   body('sensorType')
     .notEmpty()
     .withMessage('Sensor type is required')
-    .isIn(['mq4', 'dht11', 'pir', 'mq2', 'ds18b20', 'bmp280'])
+    .isIn(['mq4', 'dht22', 'pir'])
     .withMessage('Invalid sensor type'),
     
   body('readings')

@@ -1,3 +1,5 @@
+// src/types/index.ts
+
 import { Types } from 'mongoose';
 
 export interface SensorMeasurement {
@@ -6,20 +8,14 @@ export interface SensorMeasurement {
 }
 
 export interface Sensor {
-  type: string;
+  type: 'mq4' | 'dht22' | 'pir';
   label: string;
   measurements: SensorMeasurement[];
 }
 
-export interface LatestReadingValue {
-  value: number | boolean;
-  timestamp: Date;
-}
-
 export interface LatestReading {
-  [sensorType: string]: {
-    [metric: string]: LatestReadingValue;
-  };
+  value: number | boolean | object;
+  timestamp: Date;
 }
 
 export interface IDevice {
@@ -28,8 +24,9 @@ export interface IDevice {
   description?: string;
   roomId: Types.ObjectId | string; // puede ser ObjectId o string
   sensors: Sensor[];
+  activationToken: string;
   latestReading?: LatestReading;
-  status: 'active' | 'inactive' | 'maintenance';
+  status: 'pending' | 'active' | 'inactive' | 'maintenance';
   createdAt?: Date;
   updatedAt?: Date;
 }
