@@ -95,7 +95,8 @@ export class DeviceController {
         success: true,
         message: 'Device activated successfully',
         data: {
-          message: 'Activated'
+          message: 'Activated',
+          deviceId: device._id.toString(),
         }
       } as any);
     } catch (error) {
