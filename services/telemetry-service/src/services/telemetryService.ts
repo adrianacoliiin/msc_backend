@@ -3,6 +3,7 @@ import { Telemetry } from '../models/Telemetry';
 import { publishAlert } from '../utils/rabbitmq';
 import mongoose from 'mongoose';
 import { TelemetryInput, TelemetrySingle, TelemetryBatch, LatestReadingValue, DeviceUpdateEvent } from '../types/telemetry';
+import { alertService } from './alertsService'; 
 
 export class TelemetryService {
   
@@ -90,6 +91,20 @@ export class TelemetryService {
     };
 
     publishAlert(updateEvent);
+
+    // 🚨 NUEVA FUNCIONALIDAD: Verificar y enviar alertas a IFTTT
+    try {
+      // Filtrar solo lecturas numéricas para alertas de umbral
+      const numericReadings = validReadings.filter(reading => typeof reading.value === 'number') as Array<{ metric: string; value: number; timestamp: Date }>;
+      
+      if (numericReadings.length > 0) {
+        await alertService.processBatchAlerts(deviceId, data.sensorType, numericReadings);
+      }
+    } catch (error) {
+      console.error('Error processing alerts:', error);
+      // No interrumpir el flujo principal si falla el sistema de alertas
+    }
+
     console.log(`Processed ${validReadings.length} readings for device ${deviceId} (${data.sensorType})`);
   }
 
@@ -269,6 +284,17 @@ export class TelemetryService {
     ];
 
     return await Telemetry.aggregate(pipeline as mongoose.PipelineStage[]);
+  }
+
+  // 🧪 MÉTODO PARA TESTING DE ALERTAS
+  async testAlert(deviceId: string, message?: string): Promise<void> {
+    try {
+      await alertService.testAlert(deviceId, message);
+      console.log('✅ Test alert executed successfully');
+    } catch (error) {
+      console.error('❌ Test alert failed:', error);
+      throw error;
+    }
   }
 }
 

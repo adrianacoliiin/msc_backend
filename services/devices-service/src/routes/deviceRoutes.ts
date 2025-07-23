@@ -33,7 +33,7 @@ router.get('/',
 );
 
 router.get('/:id', 
-  authenticateToken, 
+  // authenticateToken, 
   deviceController.getDeviceById
 );
 
