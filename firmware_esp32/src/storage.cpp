@@ -8,6 +8,12 @@ Preferences Storage::prefs;
 
 void Storage::init() {
   prefs.begin("device_config", false);
+  
+  // Si no existe sensorType en flash, guardarlo desde config.h
+  if (!prefs.isKey("sensorType")) {
+    prefs.putString("sensorType", SENSOR_TYPE);
+    Serial.println("Initialized sensorType in flash: " + String(SENSOR_TYPE));
+  }
 }
 
 bool Storage::hasConfig() {
@@ -41,8 +47,13 @@ bool Storage::loadConfig(String& ssid, String& password, String& deviceId) {
 void Storage::clearConfig() {
   prefs.clear();
   Serial.println("Configuration cleared from flash");
+  
+  // Después de limpiar, reinicializar sensorType
+  prefs.putString("sensorType", SENSOR_TYPE);
+  Serial.println("Reinitialized sensorType: " + String(SENSOR_TYPE));
 }
 
 String Storage::getSensorType() {
+  // Usar valor por defecto de config.h si no existe en flash
   return prefs.getString("sensorType", SENSOR_TYPE);
 }

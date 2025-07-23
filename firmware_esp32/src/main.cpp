@@ -32,12 +32,12 @@ void handleOperationMode();
 void readAndPublishSensor();
 void checkResetButton();
 
-
 void setup() {
   Serial.begin(115200);
   delay(1000);
   
   Serial.println("=== ESP32 Sensor Device Starting ===");
+  Serial.println("Sensor Type: " + String(SENSOR_TYPE));
   
   // Inicializar pin del botón de reset
   pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
@@ -45,7 +45,7 @@ void setup() {
   // Inicializar storage
   Storage::init();
   
-  // Inicializar sensor
+  // Inicializar sensor (incluye estabilización PIR si aplica)
   Sensor::init();
   
   // Verificar si hay configuración guardada
@@ -58,11 +58,16 @@ void setup() {
     configMode = false;
     startOperationMode();
   }
+  
+  Serial.println("=== Setup completed ===");
 }
 
 void loop() {
   // Verificar botón de reset
   checkResetButton();
+  
+  // Verificar PIR continuamente (solo si es sensor PIR)
+  Sensor::checkPIRContinuously();
   
   if (configMode) {
     // Modo configuración: manejar servidor web
@@ -72,10 +77,12 @@ void loop() {
     handleOperationMode();
   }
   
-  delay(100);
+  delay(100);  // Delay corto para no saturar el CPU
 }
 
 void startOperationMode() {
+  Serial.println("Starting operation mode...");
+  
   // Conectar a WiFi
   if (!WiFiManager::connectToWiFi()) {
     Serial.println("Failed to connect to WiFi. Restarting setup mode...");
@@ -91,12 +98,17 @@ void startOperationMode() {
   MQTTClient::init();
   if (!MQTTClient::connect()) {
     Serial.println("Failed to connect to MQTT. Will retry...");
+  } else {
+    Serial.println("MQTT connected successfully");
   }
+  
+  Serial.println("Device ready for operation!");
 }
 
 void handleOperationMode() {
   // Mantener conexión MQTT
   if (!MQTTClient::isConnected()) {
+    Serial.println("MQTT disconnected, attempting reconnection...");
     MQTTClient::connect();
   }
   MQTTClient::loop();
@@ -118,6 +130,13 @@ void handleOperationMode() {
 void readAndPublishSensor() {
   Serial.println("Reading sensor data...");
   
+  // Para PIR, verificar si está estabilizado
+  String sensorType = Storage::getSensorType();
+  if (sensorType == "pir" && !Sensor::isPIRStabilized()) {
+    Serial.println("PIR still stabilizing, skipping this reading");
+    return;
+  }
+  
   String jsonPayload = Sensor::readAndFormat();
   if (jsonPayload.length() > 0) {
     MQTTClient::publishSensorData(jsonPayload);
@@ -125,6 +144,10 @@ void readAndPublishSensor() {
   } else {
     Serial.println("Failed to read sensor data");
   }
+  
+  // Debug info
+  Serial.println("Next reading in " + String(SENSOR_INTERVAL/1000) + " seconds");
+  Serial.println("Free heap: " + String(ESP.getFreeHeap()) + " bytes");
 }
 
 void checkResetButton() {
@@ -138,10 +161,21 @@ void checkResetButton() {
   } else if (!currentState && buttonPressed) {
     // Botón liberado
     buttonPressed = false;
-    Serial.println("Reset button released");
+    unsigned long pressDuration = millis() - buttonPressTime;
+    Serial.println("Reset button released after " + String(pressDuration) + "ms");
   } else if (buttonPressed && (millis() - buttonPressTime > 5000)) {
     // Botón mantenido por más de 5 segundos
     Serial.println("Reset button held for 5+ seconds. Clearing configuration...");
+    Serial.println("Device will restart in setup mode...");
+    
+    // Parpadear LED rápidamente para confirmar reset
+    for (int i = 0; i < 10; i++) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
+    }
+    
     Storage::clearConfig();
     ESP.restart();
   }
