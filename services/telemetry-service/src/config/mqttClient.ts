@@ -2,6 +2,7 @@
 import mqtt from 'mqtt';
 import { telemetryService } from '../services/telemetryService';
 import { TelemetryInput } from '../types/telemetry';
+import { telemetryNotificationService } from '../services/telemetryNotificationServiceInstance';
 
 let mqttClient: mqtt.MqttClient | null = null;
 
@@ -64,8 +65,35 @@ export const initMqtt = (): void => {
         return;
       }
 
-      // Procesar telemetría
+      // Procesar telemetría en base de datos
       await telemetryService.processTelemetry(deviceId, message);
+      
+      // 🚀 NUEVA FUNCIONALIDAD: Emitir notificación en tiempo real
+      // Normalizar mensaje a formato batch para la notificación
+      let notificationData;
+      if ('readings' in message) {
+        // Es un TelemetryBatch
+        notificationData = {
+          sensorType: message.sensorType,
+          readings: message.readings,
+          deviceId
+        };
+      } else {
+        // Es un TelemetrySingle - convertir a formato batch
+        notificationData = {
+          sensorType: message.sensorType,
+          readings: [{
+            metric: message.metric,
+            value: message.value,
+            timestamp: message.timestamp
+          }],
+          deviceId
+        };
+      }
+
+      telemetryNotificationService.notifyDevice(deviceId, 'new_telemetry', notificationData);
+
+      console.log(`✅ Telemetry processed and notified for device ${deviceId} (${message.sensorType})`);
       
     } catch (error) {
       console.error('MQTT message handling error:', {
