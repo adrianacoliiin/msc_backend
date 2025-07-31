@@ -1,14 +1,17 @@
 // src/services/authService.ts
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { User, IUser } from '../models/User';
 import { generateToken } from '../utils/jwt';
+import { sendMail } from '../utils/mailer';
+import { getWelcomeEmail, getResetPasswordEmail, getStatusUpdateEmail } from '../utils/emailTemplates';
 
 export interface RegisterData {
   email: string;
   password: string;
   role?: 'admin' | 'tech' | 'user';
-  name?:string;
-  last_name?:string;
+  name?: string;
+  last_name?: string;
 }
 
 export interface LoginData {
@@ -23,8 +26,8 @@ export interface AuthResponse {
     email: string;
     role: string;
     status: string;
-    name?:string;
-    last_name?:string;
+    name?: string;
+    last_name?: string;
   };
 }
 
@@ -32,6 +35,15 @@ export interface UpdateStatusData {
   userId: string;
   status: 'active' | 'rejected';
   updatedBy: string; // ID del administrador que hace el cambio
+}
+
+export interface ResetPasswordData {
+  email: string;
+}
+
+export interface ConfirmResetPasswordData {
+  token: string;
+  newPassword: string;
 }
 
 export class AuthService {
@@ -49,7 +61,7 @@ export class AuthService {
       email, 
       hashPassword, 
       role,
-      name: data.name ||'',
+      name: data.name || '',
       last_name: data.last_name || '',
       status: 'pending' // Por defecto pending para aprobación manual
     });
@@ -61,6 +73,23 @@ export class AuthService {
       user.status = 'active';
       await user.save();
       token = generateToken(user);
+    }
+
+    // Enviar correo de bienvenida
+    try {
+      const fullName = `${data.name || ''} ${data.last_name || ''}`.trim();
+      const emailTemplate = getWelcomeEmail(fullName, role);
+      
+      await sendMail({
+        to: email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html
+      });
+      
+      console.log(`Welcome email sent successfully to ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // No lanzamos error aquí para no fallar el registro si el email falla
     }
 
     return {
@@ -104,6 +133,87 @@ export class AuthService {
     };
   }
 
+  async requestPasswordReset(data: ResetPasswordData): Promise<{ message: string }> {
+    const { email } = data;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      //no revelar si el email existe o no
+      return { message: `${user}` };
+    }
+
+    // Generar token de reseteo seguro
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
+    // Configurar expiración (1 hora por defecto)
+    const resetTokenExpires = new Date(Date.now() + (parseInt(process.env.RESET_TOKEN_EXPIRES_MINUTES || '60')* 10 * 60 * 1000));
+
+    // Guardar token hasheado en la base de datos
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpires = resetTokenExpires;
+    await user.save();
+
+    // Enviar correo de recuperación
+    try {
+      const fullName = `${user.name || ''} ${user.last_name || ''}`.trim();
+      const emailTemplate = getResetPasswordEmail(fullName, resetToken);
+      
+      await sendMail({
+        to: email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html
+      });
+      
+      console.log(`Password reset email sent successfully to ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Limpiar token si no se pudo enviar el correo
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+      
+      throw new Error('Error sending reset email. Please try again later.');
+    }
+
+    return { message: 'Si el correo existe en nuestro sistema, recibirás instrucciones para restablecer tu contraseña.' };
+  }
+
+  async confirmPasswordReset(data: ConfirmResetPasswordData): Promise<{ message: string }> {
+    const { token, newPassword } = data;
+
+    // Hash del token recibido para comparar
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: resetTokenHash,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      throw new Error('Token inválido o expirado');
+    }
+
+    // Validar que la nueva contraseña sea diferente (opcional)
+    if (user.hashPassword) {
+      const isSamePassword = await bcrypt.compare(newPassword, user.hashPassword);
+      if (isSamePassword) {
+        throw new Error('La nueva contraseña debe ser diferente a la actual');
+      }
+    }
+
+    // Actualizar contraseña
+    const hashPassword = await bcrypt.hash(newPassword, 12);
+    user.hashPassword = hashPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    console.log(`Password reset completed successfully for user ${user.email}`);
+
+    return { message: 'Contraseña actualizada exitosamente' };
+  }
+
   async findUserById(userId: string): Promise<IUser | null> {
     return User.findById(userId);
   }
@@ -124,6 +234,18 @@ export class AuthService {
         oauthProviders: { googleId: profile.id },
       });
       await user.save();
+
+      // Enviar correo de bienvenida para usuarios de Google
+      try {
+        const emailTemplate = getWelcomeEmail(profile.displayName || '', 'user');
+        await sendMail({
+          to: profile.emails[0].value,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html
+        });
+      } catch (emailError) {
+        console.error('Failed to send welcome email for Google user:', emailError);
+      }
     } else if (!user.oauthProviders?.googleId) {
       user.oauthProviders = { ...user.oauthProviders, googleId: profile.id };
       await user.save();
@@ -154,8 +276,26 @@ export class AuthService {
       throw new Error(`User status is already ${status}`);
     }
 
+    const previousStatus = user.status;
     user.status = status;
     await user.save();
+
+    // Enviar correo de notificación de cambio de estado
+    try {
+      const fullName = `${user.name || ''} ${user.last_name || ''}`.trim();
+      const emailTemplate = getStatusUpdateEmail(fullName, status);
+      
+      await sendMail({
+        to: user.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html
+      });
+      
+      console.log(`Status update email sent successfully to ${user.email} (${previousStatus} -> ${status})`);
+    } catch (emailError) {
+      console.error('Failed to send status update email:', emailError);
+      // No lanzamos error aquí para no fallar la actualización si el email falla
+    }
 
     return user;
   }
@@ -171,7 +311,7 @@ export class AuthService {
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .select('-hashPassword')
+        .select('-hashPassword -resetPasswordToken')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),

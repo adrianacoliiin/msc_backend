@@ -2,13 +2,9 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/authService';
 import { JWTPayload } from '../utils/jwt';
-// import { NotificationService } from '../services/notificationService';
-// Solo importar las instancias de los servicios
 import { notificationService } from '../services/notificationServiceInstance';
 
-
 const authService = new AuthService();
-// const notificationService = new NotificationService();
 
 export class AuthController {
   // POST /register
@@ -16,8 +12,8 @@ export class AuthController {
     try {
       const { email, password, role, name, last_name } = req.body;
       const result = await authService.register({ email, password, role, name, last_name });
-      
-      // Enviar notificación en tiempo real a los administradores
+
+      // Notificación en tiempo real a administradores cuando corresponde
       if (result.user.status === 'pending') {
         notificationService.notifyAdmins('new_user_registration', {
           userId: result.user.id,
@@ -25,26 +21,26 @@ export class AuthController {
           role: result.user.role,
           createdAt: result.user.createdAt,
           name: result.user.name,
-          last_name: result.user.last_name
+          last_name: result.user.last_name,
         });
       }
 
       const responseData: any = {
         success: true,
-        message: role === 'admin' 
-          ? 'Admin registered and activated successfully' 
-          : 'User registered successfully. Please wait for admin approval.',
+        message:
+          role === 'admin'
+            ? 'Admin registered and activated successfully. Welcome email sent.'
+            : 'User registered successfully. Please wait for admin approval. Check your email for further instructions.',
         data: {
           user: {
             id: result.user.id,
             email: result.user.email,
             role: result.user.role,
-            status: result.user.status
-          }
-        }
+            status: result.user.status,
+          },
+        },
       };
 
-      // Solo incluir token si se generó (admins)
       if (result.token) {
         responseData.data.token = result.token;
       }
@@ -54,7 +50,7 @@ export class AuthController {
       console.error('Register error:', error);
       res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Registration failed'
+        error: error instanceof Error ? error.message : 'Registration failed',
       });
     }
   }
@@ -67,34 +63,53 @@ export class AuthController {
       res.json({
         success: true,
         message: 'Login successful',
-        data: result
+        data: result,
       });
     } catch (error) {
       console.error('Login error:', error);
-      
-      // Manejar específicamente los errores de aprobación
       if (error instanceof Error) {
         if (error.message.includes('aún no ha sido aprobada')) {
-          res.status(403).json({
-            success: false,
-            error: error.message,
-            code: 'ACCOUNT_PENDING'
-          });
+          res.status(403).json({ success: false, error: error.message, code: 'ACCOUNT_PENDING' });
           return;
         }
         if (error.message.includes('ha sido rechazada')) {
-          res.status(403).json({
-            success: false,
-            error: error.message,
-            code: 'ACCOUNT_REJECTED'
-          });
+          res.status(403).json({ success: false, error: error.message, code: 'ACCOUNT_REJECTED' });
           return;
         }
       }
-
       res.status(401).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Login failed'
+        error: error instanceof Error ? error.message : 'Login failed',
+      });
+    }
+  }
+
+  // POST /forgot-password
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+      const result = await authService.requestPasswordReset({ email });
+      res.json({ success: true, message: result.message });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to process password reset request',
+      });
+    }
+  }
+
+  // POST /reset-password
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { token, newPassword } = req.body;
+      const result = await authService.confirmPasswordReset({ token, newPassword });
+      res.json({ success: true, message: result.message });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reset password',
       });
     }
   }
@@ -102,27 +117,16 @@ export class AuthController {
   // GET /me
   async me(req: Request, res: Response): Promise<void> {
     try {
-      const user = (req as any)['user'] as JWTPayload | undefined;
-      
-      if (!user) {
-        res.status(401).json({ 
-          success: false, 
-          error: 'Authentication required' 
-        });
+      const userToken = (req as any).user as JWTPayload | undefined;
+      if (!userToken) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
         return;
       }
-
-      const { userId } = user;
-      const userData = await authService.findUserById(userId);
-      
+      const userData = await authService.findUserById(userToken.userId);
       if (!userData) {
-        res.status(404).json({ 
-          success: false, 
-          error: 'User not found' 
-        });
+        res.status(404).json({ success: false, error: 'User not found' });
         return;
       }
-
       res.json({
         success: true,
         data: {
@@ -131,114 +135,91 @@ export class AuthController {
           role: userData.role,
           status: userData.status,
           createdAt: userData.createdAt,
-          name:userData.name,
-          last_name: userData.last_name
-        }
+          name: userData.name,
+          last_name: userData.last_name,
+        },
       });
     } catch (error) {
       console.error('Me error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get user data'
-      });
+      res.status(500).json({ success: false, error: 'Failed to get user data' });
     }
   }
 
-  // GET /users - Obtener lista de usuarios (solo admin)
+  // GET /users
   async getUsers(req: Request, res: Response): Promise<void> {
     try {
-      const { status, page = 1, limit = 10 } = req.query;
-      
-      const result = await authService.getAllUsers(
-        parseInt(page as string),
-        parseInt(limit as string),
-        status as string
-      );
-
-      res.json({
-        success: true,
-        data: result
-      });
+      const { status, page = '1', limit = '10' } = req.query;
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
+      const result = await authService.getAllUsers(pageNum, limitNum, status as string);
+      res.json({ success: true, data: result });
     } catch (error) {
       console.error('Get users error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get users'
-      });
+      res.status(500).json({ success: false, error: 'Failed to get users' });
     }
   }
 
-  // GET /users/pending - Obtener usuarios pendientes (solo admin)
+  // GET /users/pending
   async getPendingUsers(req: Request, res: Response): Promise<void> {
     try {
       const users = await authService.getPendingUsers();
-      
       res.json({
         success: true,
-        data: users.map(user => ({
-          id: user.id,
-          name: user.name,
-          last_name: user.last_name,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-          createdAt: user.createdAt
-        }))
+        data: users.map(u => ({
+          id: u.id,
+          name: u.name,
+          last_name: u.last_name,
+          email: u.email,
+          role: u.role,
+          status: u.status,
+          createdAt: u.createdAt,
+        })),
       });
     } catch (error) {
       console.error('Get pending users error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get pending users'
-      });
+      res.status(500).json({ success: false, error: 'Failed to get pending users' });
     }
   }
 
-  // PATCH /users/:id/status - Actualizar estado del usuario (solo admin)
+  // PATCH /users/:id/status
   async updateUserStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const adminUser = (req as any)['user'] as JWTPayload;
+      const adminUser = (req as any).user as JWTPayload;
 
       if (!['active', 'rejected'].includes(status)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid status. Must be "active" or "rejected"'
-        });
+        res.status(400).json({ success: false, error: 'Invalid status. Must be "active" or "rejected"' });
         return;
       }
 
-      const updatedUser = await authService.updateUserStatus({
-        userId: id,
-        status,
-        updatedBy: adminUser.userId
-      });
+      const updated = await authService.updateUserStatus({ userId: id, status, updatedBy: adminUser.userId });
 
-      // Notificar al usuario sobre el cambio de estado
-      notificationService.notifyUser(updatedUser.id, 'status_updated', {
+      // Notificar al usuario vía WebSocket
+      notificationService.notifyUser(updated.id, 'status_updated', {
         status,
-        message: status === 'active' 
-          ? 'Tu cuenta ha sido aprobada. Ya puedes iniciar sesión.'
-          : 'Tu cuenta ha sido rechazada. Contacta al administrador para más información.'
+        message:
+          status === 'active'
+            ? 'Tu cuenta ha sido aprobada. Ya puedes iniciar sesión.'
+            : 'Tu cuenta ha sido rechazada. Contacta al administrador para más información.',
       });
 
       res.json({
         success: true,
         message: `User status updated to ${status}`,
         data: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          role: updatedUser.role,
-          status: updatedUser.status,
-          updatedAt: updatedUser.updatedAt
-        }
+          id: updated.id,
+          email: updated.email,
+          role: updated.role,
+          status: updated.status,
+          updatedAt: updated.updatedAt,
+        },
       });
     } catch (error) {
       console.error('Update user status error:', error);
       res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update user status'
+        error: error instanceof Error ? error.message : 'Failed to update user status',
       });
     }
   }

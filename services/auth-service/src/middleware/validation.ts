@@ -10,11 +10,23 @@ export const validateRegister = [
     .withMessage('Please provide a valid email'),
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .withMessage('Password must be at least 6 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number'),
   body('role')
     .optional()
     .isIn(['admin', 'tech', 'user'])
-    .withMessage('Role must be admin, tech, or user')
+    .withMessage('Role must be admin, tech, or user'),
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Name must be between 2 and 50 characters'),
+  body('last_name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Last name must be between 2 and 50 characters')
 ];
 
 export const validateLogin = [
@@ -27,7 +39,28 @@ export const validateLogin = [
     .withMessage('Password is required')
 ];
 
-// Nueva validación para actualizar estado de usuario
+// Nuevas validaciones para recuperación de contraseña
+export const validateForgotPassword = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address')
+];
+
+export const validateResetPassword = [
+  body('token')
+    .notEmpty()
+    .withMessage('Reset token is required')
+    .isLength({ min: 64, max: 64 })
+    .withMessage('Invalid reset token format'),
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('New password must contain at least one lowercase letter, one uppercase letter, and one number')
+];
+
+// Validación para actualizar estado de usuario
 export const validateUpdateUserStatus = [
   param('id')
     .isMongoId()

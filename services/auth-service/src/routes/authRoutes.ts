@@ -1,7 +1,13 @@
 // src/routes/authRoutes.ts
 import { Router } from 'express';
 import { AuthController } from '../controllers/authController';
-import { validateRegister, validateLogin, handleValidationErrors } from '../middleware/validation';
+import { 
+  validateRegister, 
+  validateLogin, 
+  validateForgotPassword,
+  validateResetPassword,
+  handleValidationErrors 
+} from '../middleware/validation';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
@@ -18,6 +24,19 @@ router.post('/login',
   validateLogin, 
   handleValidationErrors, 
   authController.login
+);
+
+// Rutas de recuperación de contraseña (públicas)
+router.post('/forgot-password',
+  validateForgotPassword,
+  handleValidationErrors,
+  authController.forgotPassword
+);
+
+router.post('/reset-password',
+  validateResetPassword,
+  handleValidationErrors,
+  authController.resetPassword
 );
 
 // Rutas protegida - usuario autenticado
